@@ -1,14 +1,26 @@
+# coding=utf-8
+
+from __future__ import print_function # import de la fonction print de python3
+
 from pyspark import SparkContext
 from pyspark.mllib.regression import LabeledPoint
 from pyspark.mllib.classification import LogisticRegressionWithLBFGS
 from pyspark.mllib.evaluation import BinaryClassificationMetrics
 
-import os, tempfile, logging
+import os, tempfile, logging, shutil
 import pandas as pd
 from datetime import datetime as dt
+from urlparse import urlparse
+
+# Définition des chemins
+
+dir_path = 'file:///home/francois/code/GermanCredit/'
+input_file_name = 'random_data.csv'
+log_file_name = 'logreg.log'
+results_file = 'results.out'
 
 # Configuration du Log
-logging.basicConfig(filename='D:\\Users\\s36733\\Documents\\Projets\\TestSpark\\logreg.log',level=logging.DEBUG)
+logging.basicConfig(filename=urlparse(dir_path+log_file_name).path,level=logging.INFO)
 logging.info('Starting to Log at {}'.format(dt.now().strftime("%b %d %Y %H:%M:%S")))
 
 sc = SparkContext()
@@ -17,10 +29,10 @@ logging.info('SparkContext created successfully')
 sc.setLogLevel("ERROR")
 
 # Définition des variables générales
-filepath = "D:\\Users\\s36733\\Documents\\Projets\\TestSpark\\german_credit.csv"
+filepath = dir_path + input_file_name
 separator = ','
-target_name = 'Creditability'
-cols_to_remove = ['Purpose', 'Telephone']
+target_name = 'target'
+cols_to_remove = []
 cols_to_remove_index = []
 
 #filepath = "D:\\Users\\s36733\\Documents\\Projets\\ScoreB2BNord\\dtm_sample2.csv"
@@ -31,7 +43,7 @@ cols_to_remove_index = []
 
 train_test_ratio = [0.8, 0.2]
 ridge_param = 0.001 #lambda
-model_save_path = "D:\\Users\\s36733\\Documents\\Projets\\TestSpark\\model"
+model_save_path = urlparse(dir_path+'model').path
 
 # Fonction de décodage des lignes en LabeledPoints
 def parsePoint(line, target_index, cols_to_remove_index):
@@ -78,6 +90,8 @@ model = LogisticRegressionWithLBFGS.train(
 logging.info('LogisticRegressionWithLBFGS model trained')
 
 # Sauvegarde du modèle pour usage futur
+if os.path.isdir(model_save_path):
+    shutil.rmtree(model_save_path)
 model.save(sc, model_save_path)
 logging.info('LogisticRegressionWithLBFGS model saved')
 
@@ -92,7 +106,7 @@ predictionAndLabels_ridge_test  = test.map(lambda lp: (float(model.predict(lp.fe
 metrics_ridge_test  = BinaryClassificationMetrics(predictionAndLabels_ridge_test)
 
 # Construction d'un DataFrame pandas contenant les coeffs
-variable_list = header.split(separator) # Liste des variables
+variable_list = header_split[:] # Liste des variables
 variable_list.remove(target_name)       # Liste des variables privée de la cible
 for col in cols_to_remove:          
     variable_list.remove(col)           # Liste des variables privée des variables à exclure
@@ -105,9 +119,8 @@ coeffs = coeffs.append(
 
 # Ecriture d'un fichier de sortie
 
-text_file = open('D:\\Users\\s36733\\Documents\\Projets\\TestSpark\\results.out', 'w')
+text_file = open(urlparse(dir_path+results_file).path, 'w')
 
-text_file.write(dt.now().strftime("%b %d %Y %H:%M:%S"))
 print(dt.now().strftime("%b %d %Y %H:%M:%S"), file=text_file)
 print("-------------------------------------------------------------------------------------------------", file=text_file)
 print("-------------------------------------------------------------------------------------------------", file=text_file)
