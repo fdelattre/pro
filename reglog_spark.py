@@ -75,9 +75,6 @@ model = LogisticRegressionWithLBFGS.train(
     regParam = ridge_param)
 logging.info('LogisticRegressionWithLBFGS model trained')
 
-model.save("LogisticRegression")
-
-
 # Estimation de l'AUC sur le jeu de train
 predictionAndLabels_ridge_train = train.map(lambda lp: (float(model.predict(lp.features)), lp.label))
 metrics_ridge_train = BinaryClassificationMetrics(predictionAndLabels_ridge_train)
