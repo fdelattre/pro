@@ -3,9 +3,8 @@ from pyspark.mllib.regression import LabeledPoint
 from pyspark.mllib.classification import LogisticRegressionWithLBFGS
 from pyspark.mllib.evaluation import BinaryClassificationMetrics
 
+import os, tempfile, logging
 import pandas as pd
-import os
-import logging
 from datetime import datetime as dt
 
 # Configuration du Log
@@ -32,6 +31,7 @@ cols_to_remove_index = []
 
 train_test_ratio = [0.8, 0.2]
 ridge_param = 0.001 #lambda
+model_save_path = "D:\\Users\\s36733\\Documents\\Projets\\TestSpark\\model"
 
 # Fonction de décodage des lignes en LabeledPoints
 def parsePoint(line, target_index, cols_to_remove_index):
@@ -70,10 +70,18 @@ train, test = points.randomSplit(train_test_ratio, seed=11)
 # Entrainement du modèle
 model = LogisticRegressionWithLBFGS.train(
     train, 
+    #sc.parallelize(train),
     intercept = True, 
     regType = 'l2', 
     regParam = ridge_param)
+
 logging.info('LogisticRegressionWithLBFGS model trained')
+
+# Sauvegarde du modèle pour usage futur
+model.save(sc, model_save_path)
+logging.info('LogisticRegressionWithLBFGS model saved')
+
+
 
 # Estimation de l'AUC sur le jeu de train
 predictionAndLabels_ridge_train = train.map(lambda lp: (float(model.predict(lp.features)), lp.label))
@@ -113,7 +121,7 @@ print("\n", file=text_file)
 print("-------------------------------------------------------------------------------------------------", file=text_file)
 print("-------------------------------------------------------------------------------------------------", file=text_file)
 print("Régression logistique pénalisée L2 avec lambda = {}".format(ridge_param), file=text_file)
-# print("Modéle sauvegardé sous {}".format(save_file), file=text_file)
+print("Modéle sauvegardé sous {}".format(model_save_path), file=text_file)
 print("-------------------------------------------------------------------------------------------------", file=text_file)
 print("-------------------------------------------------------------------------------------------------", file=text_file)
 print("AUC jeu de train = {}".format(metrics_ridge_train.areaUnderROC), file = text_file)
@@ -124,9 +132,7 @@ print("---------------------------------COEFFICIENTS----------------------------
 print("-------------------------------------------------------------------------------------------------", file=text_file)
 
 print(coeffs.to_string(), file=text_file)
-
+# Close file
 text_file.close()
-
-
 # Close Spark Context
 sc.stop()
