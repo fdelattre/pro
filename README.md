@@ -7,6 +7,6 @@
   logreg.py
   --input_file german_credit.csv
   --target_name Creditability
-  --separator ;
+  --separator ,
   </code>
 
