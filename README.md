@@ -1,4 +1,4 @@
-# Lancement du la reglog avec Spark
+# Lancement de la reglog avec Spark
 
 ./bin/spark-submit --master local[*] \
   ../GermanCredit/logreg.py \
