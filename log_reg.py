@@ -43,7 +43,7 @@ sc.setLogLevel("ERROR")
 # Définition des variables générales
 separator = args.separator #','
 target_name = args.target_name #'target'
-cols_to_remove = []
+cols_to_remove = args.cols_to_remove
 cols_to_remove_index = []
 
 #filepath = "D:\\Users\\s36733\\Documents\\Projets\\ScoreB2BNord\\dtm_sample2.csv"
