@@ -19,3 +19,9 @@ Liste des options :
 * -t cible
 * -c col1 col2 col 3 : la liste des colonnes à exclure
 * -r 0.01 la paramètre de pénalité (par défaut 0.01)
+
+
+# TODO
+* implémentation de la regression logistique pénalisée L1 et L2
+* contrôles de cohérence et messages d'erreur plus clairs
+* Augmenter le niveau de log
