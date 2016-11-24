@@ -4,7 +4,7 @@ from __future__ import print_function # import de la fonction print de python3
 
 from pyspark import SparkContext
 from pyspark.mllib.regression import LabeledPoint
-from pyspark.mllib.classification import LogisticRegressionWithLBFGS
+from pyspark.mllib.classification import LogisticRegressionWithSGD, LogisticRegressionModel
 from pyspark.mllib.evaluation import BinaryClassificationMetrics
 
 import os, tempfile, logging, shutil
@@ -20,42 +20,49 @@ parser.add_argument("-f", "--input_file", help="Full path of the file to be proc
 parser.add_argument("-s", "--separator", help="separator used in file", default=',')
 parser.add_argument("-t", "--target_name", help="Name of the target", default='Target')
 parser.add_argument("-c", "--cols_to_remove", help="Columns to remove if any", nargs='*', default=[])
-parser.add_argument("-r", "--ridge_param", help="Ridge Param", type=int, default=0.01)
+parser.add_argument("-p", "--penalty", help="Regularization Type", default='l2')
+parser.add_argument("-r", "--penalty_param", help="Penalty Parameter", type=float, default=0.01)
+
 
 args = parser.parse_args()
 
 # Définition des chemins
-
-dir_path = args.dir_path #'file:///home/francois/code/GermanCredit/'
-input_file_name = args.input_file #'random_data.csv'
+dir_path = args.dir_path
+input_file_name = args.input_file
 log_file_name = 'logreg.log'
 results_file = 'results.out'
 
 # Configuration du Log
+start_time = dt.now().strftime("%b %d %Y %H:%M:%S")
 logging.basicConfig(filename=os.path.join(dir_path,log_file_name),level=logging.INFO)
-logging.info('Starting to Log at {}'.format(dt.now().strftime("%b %d %Y %H:%M:%S")))
+logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'Starting to Log')
 
+# Création des contextes Spark et SQL
 sc = SparkContext()
 logging.info('SparkContext created successfully')
-
 sc.setLogLevel("ERROR")
+logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'SparkContext created successfully')
+
 
 # Définition des variables générales
 separator = args.separator #','
 target_name = args.target_name #'target'
 cols_to_remove = args.cols_to_remove
 cols_to_remove_index = []
-
-#filepath = "D:\\Users\\s36733\\Documents\\Projets\\ScoreB2BNord\\dtm_sample2.csv"
-#separator = ';'
-#target_name = 'cible_reut2'
-#cols_to_remove = ['idcli_horus', 'nbreut2', 'reut_ff', 'reut_sof', 'reut_cacf']
-#cols_to_remove_index = []
-
 train_test_ratio = [0.8, 0.2]
-ridge_param = args.ridge_param #lambda
+reg_type = args.penalty
+ridge_param = args.penalty_param #lambda
 
+
+######################################################
 # Fonction de décodage des lignes en LabeledPoints
+# En entrée : 
+#               - la ligne à parser
+#               - l'indice de la cible
+#               - les indices des colonnes à ignorer
+# En sortie :
+#               - Un LabeledPoint
+######################################################
 def parsePoint(line, target_index, cols_to_remove_index):
     values = [float(s) for s in line.split(separator)]
     target = values[target_index]
@@ -68,6 +75,7 @@ def parsePoint(line, target_index, cols_to_remove_index):
     for i in sorted(local_col_to_remove, reverse=True):
         values.pop(i)
     return LabeledPoint(target, values)
+#######################################################
 
 # Lecture du fichier
 data = sc.textFile(input_file_name)
@@ -83,40 +91,49 @@ data = data.filter(lambda row: row != header)   # filter out header
 dimensions = [data.count(), len(header.split(separator))]
 
 # Transformation des données en LabeledPoints
+logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'Transformation to LabeledPoints')
 points = data.map(lambda line: parsePoint(line, target_index, cols_to_remove_index))
-logging.info('Labelled Points created')
+logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'done...')
 
 # Split des données en train / test
+logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'Train / test split')
 train, test = points.randomSplit(train_test_ratio, seed=11)
+logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'done...')
+
 
 # Entrainement du modèle
-model = LogisticRegressionWithLBFGS.train(
+model = LogisticRegressionWithSGD.train(
     train, 
-    #sc.parallelize(train),
     intercept = True, 
-    regType = 'l2', 
+    regType = reg_type, 
     regParam = ridge_param)
 
-logging.info('LogisticRegressionWithLBFGS model trained')
+logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'LogisticRegression model trained')
+
 
 # Sauvegarde du modèle pour usage futur
-model_save_path = os.path.join(dir_path, 'model')
+model_save_path = os.path.join(dir_path, 'model.LogisticRegression')
 if os.path.isdir(model_save_path):
     shutil.rmtree(model_save_path)
 model.save(sc, model_save_path)
-logging.info('LogisticRegressionWithLBFGS model saved')
-
+logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'Model saved under {}'.format(model_save_path))
 
 
 # Estimation de l'AUC sur le jeu de train
+logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'Compute train AUC')
 predictionAndLabels_ridge_train = train.map(lambda lp: (float(model.predict(lp.features)), lp.label))
 metrics_ridge_train = BinaryClassificationMetrics(predictionAndLabels_ridge_train)
+logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'done...')
+
 
 # Estimation de l'AUC sur jeu de test
+logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'Compute test AUC')
 predictionAndLabels_ridge_test  = test.map(lambda lp: (float(model.predict(lp.features)), lp.label))
 metrics_ridge_test  = BinaryClassificationMetrics(predictionAndLabels_ridge_test)
+logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'done...')
 
 # Construction d'un DataFrame pandas contenant les coeffs
+logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'Create results dataframe')
 variable_list = header_split[:] # Liste des variables
 variable_list.remove(target_name)       # Liste des variables privée de la cible
 for col in cols_to_remove:          
@@ -127,8 +144,17 @@ coeffs = coeffs.append(
     pd.Series({"Variables":'Intercept', "Coefficient":model.intercept}), 
     ignore_index=True)
 
+# Version de pandas >= 0.17.0
+#coeffs.sort_values(by="Coefficient", axis=1, ascending=False, inplace=True)
 
+# Version de pandas < 0.17.0
+coeffs = coeffs.sort("Coefficient", ascending=False)
+coeffs_non_nuls = coeffs[coeffs['Coefficient'] != 0]
+logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'done...')
+
+end_time = dt.now().strftime("%b %d %Y %H:%M:%S")
 # Ecriture d'un fichier de sortie
+logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'Writing results')
 
 text_file = open(os.path.join(dir_path, results_file), 'w')
 
@@ -142,9 +168,11 @@ print("Dimensions : {}".format(dimensions), file=text_file)
 print("Cible : {}".format(target_name), file=text_file)
 print("Colonnes exclues : {}".format(cols_to_remove), file=text_file)
 print("\n", file=text_file)
+print("Début du traitement : {}".format(start_time), file=text_file)
+print("Fin du traitement : {}".format(end_time), file=text_file)
 print("-------------------------------------------------------------------------------------------------", file=text_file)
 print("-------------------------------------------------------------------------------------------------", file=text_file)
-print("Régression logistique pénalisée L2 avec lambda = {}".format(ridge_param), file=text_file)
+print("Régression logistique pénalisée {} avec lambda = {}".format(reg_type, ridge_param), file=text_file)
 print("Modéle sauvegardé sous {}".format(model_save_path), file=text_file)
 print("-------------------------------------------------------------------------------------------------", file=text_file)
 print("-------------------------------------------------------------------------------------------------", file=text_file)
@@ -158,5 +186,9 @@ print("-------------------------------------------------------------------------
 print(coeffs.to_string(), file=text_file)
 # Close file
 text_file.close()
+logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'done...')
+
 # Close Spark Context
+logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'closing Spark Context')
 sc.stop()
+logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'done...')
