@@ -35,13 +35,13 @@ results_file = 'results.out'
 # Configuration du Log
 start_time = dt.now().strftime("%b %d %Y %H:%M:%S")
 logging.basicConfig(filename=os.path.join(dir_path,log_file_name),level=logging.INFO)
-logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'Starting to Log')
+logging.info('{0} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'Starting to Log')
 
 # Création des contextes Spark et SQL
 sc = SparkContext()
 logging.info('SparkContext created successfully')
 sc.setLogLevel("ERROR")
-logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'SparkContext created successfully')
+logging.info('{0} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'SparkContext created successfully')
 
 
 # Définition des variables générales
@@ -79,7 +79,7 @@ def parsePoint(line, target_index, cols_to_remove_index):
 
 # Lecture du fichier
 data = sc.textFile(input_file_name)
-logging.info('File {} read'.format(input_file_name))
+logging.info('File {0} read'.format(input_file_name))
 
 header = data.first()
 header_split = [item.strip('"') for item in header.split(separator)]
@@ -91,14 +91,14 @@ data = data.filter(lambda row: row != header)   # filter out header
 dimensions = [data.count(), len(header.split(separator))]
 
 # Transformation des données en LabeledPoints
-logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'Transformation to LabeledPoints')
+logging.info('{0} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'Transformation to LabeledPoints')
 points = data.map(lambda line: parsePoint(line, target_index, cols_to_remove_index))
-logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'done...')
+logging.info('{0} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'done...')
 
 # Split des données en train / test
-logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'Train / test split')
+logging.info('{0} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'Train / test split')
 train, test = points.randomSplit(train_test_ratio, seed=11)
-logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'done...')
+logging.info('{0} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'done...')
 
 
 # Entrainement du modèle
@@ -108,32 +108,32 @@ model = LogisticRegressionWithSGD.train(
     regType = reg_type, 
     regParam = ridge_param)
 
-logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'LogisticRegression model trained')
+logging.info('{0} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'LogisticRegression model trained')
 
 
 # Sauvegarde du modèle pour usage futur
-model_save_path = os.path.join(dir_path, 'model.LogisticRegression')
+model_save_path = 'model.lr.{0}'.format(dt.now().strftime('%b%d%Y%H%M%S'))
 if os.path.isdir(model_save_path):
     shutil.rmtree(model_save_path)
 model.save(sc, model_save_path)
-logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'Model saved under {}'.format(model_save_path))
+logging.info('{0} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'Model saved under {0}'.format(model_save_path))
 
 
 # Estimation de l'AUC sur le jeu de train
-logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'Compute train AUC')
+logging.info('{0} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'Compute train AUC')
 predictionAndLabels_ridge_train = train.map(lambda lp: (float(model.predict(lp.features)), lp.label))
 metrics_ridge_train = BinaryClassificationMetrics(predictionAndLabels_ridge_train)
-logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'done...')
+logging.info('{0} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'done...')
 
 
 # Estimation de l'AUC sur jeu de test
-logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'Compute test AUC')
+logging.info('{0} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'Compute test AUC')
 predictionAndLabels_ridge_test  = test.map(lambda lp: (float(model.predict(lp.features)), lp.label))
 metrics_ridge_test  = BinaryClassificationMetrics(predictionAndLabels_ridge_test)
-logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'done...')
+logging.info('{0} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'done...')
 
 # Construction d'un DataFrame pandas contenant les coeffs
-logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'Create results dataframe')
+logging.info('{0} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'Create results dataframe')
 variable_list = header_split[:] # Liste des variables
 variable_list.remove(target_name)       # Liste des variables privée de la cible
 for col in cols_to_remove:          
@@ -150,11 +150,11 @@ coeffs = coeffs.append(
 # Version de pandas < 0.17.0
 coeffs = coeffs.sort("Coefficient", ascending=False)
 coeffs_non_nuls = coeffs[coeffs['Coefficient'] != 0]
-logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'done...')
+logging.info('{0} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'done...')
 
 end_time = dt.now().strftime("%b %d %Y %H:%M:%S")
 # Ecriture d'un fichier de sortie
-logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'Writing results')
+logging.info('{0} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'Writing results')
 
 text_file = open(os.path.join(dir_path, results_file), 'w')
 
@@ -162,23 +162,23 @@ print(dt.now().strftime("%b %d %Y %H:%M:%S"), file=text_file)
 print("-------------------------------------------------------------------------------------------------", file=text_file)
 print("-------------------------------------------------------------------------------------------------", file=text_file)
 
-print("Fichier traité: {}".format(input_file_name), file=text_file)
+print("Fichier traité: {0}".format(input_file_name), file=text_file)
 
-print("Dimensions : {}".format(dimensions), file=text_file)
-print("Cible : {}".format(target_name), file=text_file)
-print("Colonnes exclues : {}".format(cols_to_remove), file=text_file)
+print("Dimensions : {0}".format(dimensions), file=text_file)
+print("Cible : {0}".format(target_name), file=text_file)
+print("Colonnes exclues : {0}".format(cols_to_remove), file=text_file)
 print("\n", file=text_file)
-print("Début du traitement : {}".format(start_time), file=text_file)
-print("Fin du traitement : {}".format(end_time), file=text_file)
+print("Début du traitement : {0}".format(start_time), file=text_file)
+print("Fin du traitement : {0}".format(end_time), file=text_file)
 print("-------------------------------------------------------------------------------------------------", file=text_file)
 print("-------------------------------------------------------------------------------------------------", file=text_file)
-print("Régression logistique pénalisée {} avec lambda = {}".format(reg_type, ridge_param), file=text_file)
-print("Modéle sauvegardé sous {}".format(model_save_path), file=text_file)
+print("Régression logistique pénalisée {0} avec lambda = {1}".format(reg_type, ridge_param), file=text_file)
+print("Modéle sauvegardé sous {0}".format(model_save_path), file=text_file)
 print("-------------------------------------------------------------------------------------------------", file=text_file)
 print("-------------------------------------------------------------------------------------------------", file=text_file)
-print("AUC jeu de train = {}".format(metrics_ridge_train.areaUnderROC), file = text_file)
-print("AUC jeu de test = {}".format(metrics_ridge_test.areaUnderROC), file = text_file)
-print("Ratio Train / Test : {}".format(train_test_ratio), file=text_file)
+print("AUC jeu de train = {0}".format(metrics_ridge_train.areaUnderROC), file = text_file)
+print("AUC jeu de test = {0}".format(metrics_ridge_test.areaUnderROC), file = text_file)
+print("Ratio Train / Test : {0}".format(train_test_ratio), file=text_file)
 print("-------------------------------------------------------------------------------------------------", file=text_file)
 print("---------------------------------COEFFICIENTS----------------------------------------------------", file=text_file)
 print("-------------------------------------------------------------------------------------------------", file=text_file)
@@ -186,9 +186,9 @@ print("-------------------------------------------------------------------------
 print(coeffs.to_string(), file=text_file)
 # Close file
 text_file.close()
-logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'done...')
+logging.info('{0} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'done...')
 
 # Close Spark Context
-logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'closing Spark Context')
+logging.info('{0} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'closing Spark Context')
 sc.stop()
-logging.info('{} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'done...')
+logging.info('{0} : '.format(dt.now().strftime("%b %d %Y %H:%M:%S")) + 'done...')
